@@ -5,6 +5,8 @@ import sys
 import shutil
 import subprocess
 import json
+import re
+import requests
 
 def fatal(ret_code, str = None):
   if str is not None:
@@ -53,7 +55,17 @@ def get_gext_info(ext):
   return result
 
 
+def get_gshell_version():
+  result = run_prog('gnome-shell', ['--version']).strip()
+  m = re.match(r'GNOME Shell\s+([0-9.]+)', result)
+  if m:
+    return m.group(1)
+  return ''
+
+
 def main(args):
+
+  shell_version = get_gshell_version()
 
   if args.op == 'list':
     for ext in get_gext_list():
@@ -84,13 +96,19 @@ def main(args):
       installed_gexts[ext] = get_gext_info(ext)
 
     for ext in sorted(published_gexts.keys()):
-      if ext not in installed_gexts:
+      if True:
+      # if ext not in installed_gexts:
         print(f"Published extension {ext} is not installed")
-      elif published_gexts[ext]["Version"] != installed_gexts[ext]["Version"]:
+        params = { 'uuid': ext, 'shell_version': shell_version}
+        r = requests.get('https://extensions.gnome.org/extension-info/', params=params)
+        response = r.json()
+
+      elif (not args.force) and published_gexts[ext]["Version"] != installed_gexts[ext]["Version"]:
         print(f"Extension version mismatch for {ext}")
         print(f"  Published version: {published_gexts[ext]['Version']}")
         print(f"  Installed version: {installed_gexts[ext]['Version']}")
       else:
+        # this needs testing ...
         path = f"/org/gnome/shell/extensions/{ext.split('@')[0]}/"
         # run_prog('dconf', ['reset' '-f', path])
         cfg = "\n".join(published_gexts[ext]['dconf_dump']) + "\n"
@@ -104,6 +122,7 @@ if __name__ == "__main__":
   parser = argparse.ArgumentParser(prog='gnome-ext-util', description='Utility for saving and restoring gnome extensions', epilog='')
   parser.add_argument("op", choices=['load', 'dump', 'list'], help="")
   parser.add_argument("file", nargs='?', default=None, help="")
+  parser.add_argument("-f", "--force", action="store_true", help="")
   args = parser.parse_args()
 
   if args.op == "list" and args.file is not None:
