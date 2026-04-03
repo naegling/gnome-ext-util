@@ -1,5 +1,5 @@
 [project]
-name = "gnome-ext-util"
+name = "gext-util"
 version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"

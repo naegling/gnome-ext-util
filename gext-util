@@ -37,7 +37,8 @@ def run_prog(prog, args, input=None):
     fatal(1, f"Failed to execute: {" ".join(run_args)}")
 
   if result.returncode != 0 or len(result.stderr) > 0:
-    fatal(1, f"Failed to execute: {" ".join(run_args)}\nReturn Code {result.returncode}\n{result.stderr}")
+    return ""
+    # fatal(1, f"Failed to execute: {" ".join(run_args)}\nReturn Code {result.returncode}\n{result.stderr}")
 
   return result.stdout
 
@@ -98,7 +99,7 @@ def main(args):
           if len(line) > 0:
             args.exclude.append(line)
 
-    except IOError as err:    
+    except IOError as err:
       fatal(1, f"{err}")
     except Exception as err:
       fatal(1, f"Unexpected {err=}, {type(err)=}")
@@ -122,7 +123,7 @@ def main(args):
     try:
       with open(args.file, "w") as outfile:
         json.dump(gexts, outfile, sort_keys=True, indent=2)
-    except IOError as err:    
+    except IOError as err:
       fatal(1, f"{err}")
     except Exception as err:
       fatal(1, f"Unexpected {err=}, {type(err)=}")
@@ -134,7 +135,7 @@ def main(args):
     try:
       with open(args.file) as infile:
         published_gexts = json.load(infile)
-    except IOError as err:    
+    except IOError as err:
       fatal(1, f"{err}")
     except Exception as err:
       fatal(1, f"Unexpected {err=}, {type(err)=}")
@@ -175,13 +176,14 @@ def main(args):
                   if do_install:
                     # install and configure
                     install_gext(fname)
+                    path = f"/org/gnome/shell/extensions/{ext.split('@')[0]}/"
                     cfg = "\n".join(published_gexts[ext]['dconf_dump']) + "\n"
                     apply_dconf_cfg(path, cfg)
 
                   try:
                     os.remove(fname)
                   except OSError as err:
-                    pass  
+                    pass
                 else:
                   print(f"Download URL missing for '{ext}' from extensions.gnome.org")
               else:
