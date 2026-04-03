@@ -1,2 +1,2 @@
-# gnome-ext-util
+# gext-util
 Utility to backup and restore gnome shell extensions
