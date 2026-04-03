@@ -4,6 +4,7 @@ import argparse
 import sys
 import os
 import shutil
+import shlex
 import subprocess
 import re
 import json
@@ -28,17 +29,25 @@ def ensure_binaries(prgs):
       ensure_binaries(prg)
 
 
-def run_prog(prog, args, input=None):
-  run_args = [prog]
-  run_args.extend(args)
-  try:
-    result = subprocess.run(run_args, input=input, capture_output=True, text=True)
-  except:
-    fatal(1, f"Failed to execute: {" ".join(run_args)}")
+def run_prog(prog, args=None, cwd=None, input=None, fatal_fail=False):
 
-  if result.returncode != 0 or len(result.stderr) > 0:
-    return ""
-    # fatal(1, f"Failed to execute: {" ".join(run_args)}\nReturn Code {result.returncode}\n{result.stderr}")
+  if args is not None:
+    run_args = [prog]
+    run_args.extend(args)
+  else:
+    run_args = shlex.split(prog)
+
+  try:
+    result = subprocess.run(run_args, input=input, capture_output=True, text=True, cwd=cwd)
+  except:
+    if fatal_fail:
+      fatal(1, f"Failed to execute: {" ".join(run_args)}")
+    return None
+
+  if result.returncode != 0:
+    if fatal_fail:
+      fatal(1, f"Failed to execute: {" ".join(run_args)}\nReturn Code {result.returncode}\n{result.stderr}")
+    return None
 
   return result.stdout
 
@@ -84,6 +93,10 @@ def apply_dconf_cfg(path, cfg):
 
 def install_gext(fname):
   run_prog('gnome-extensions', ['install', fname])
+
+
+def enable_gext(ext):
+  run_prog('gnome-extensions', ['enable', ext])
 
 
 def main(args):
@@ -145,6 +158,7 @@ def main(args):
       if ext not in args.exclude:
         installed_gexts[ext] = get_gext_info(ext)
 
+    was_installed = False
     for ext in sorted(published_gexts.keys()):
       if ext not in args.exclude:
 
@@ -179,7 +193,8 @@ def main(args):
                     path = f"/org/gnome/shell/extensions/{ext.split('@')[0]}/"
                     cfg = "\n".join(published_gexts[ext]['dconf_dump']) + "\n"
                     apply_dconf_cfg(path, cfg)
-
+                    enable_gext(ext)
+                    was_installed = True
                   try:
                     os.remove(fname)
                   except OSError as err:
@@ -206,6 +221,9 @@ def main(args):
           cfg = "\n".join(published_gexts[ext]['dconf_dump']) + "\n"
           reset_dconf_cfg(path)
           apply_dconf_cfg(path, cfg)
+
+    if was_installed:
+      print("Installed extensions will not be active until next logon.")
 
   return 0
 
